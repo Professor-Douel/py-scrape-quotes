@@ -19,7 +19,9 @@ class Quote:
     @classmethod
     def from_csv_row(cls, row: list[str]) -> "Quote":
         text, author, tags_str = row
-        tags = tags_str.split(", ") if tags_str else []
+        tags = tags_str.strip("[]").replace(
+            "'", ""
+        ).split(", ") if tags_str else []
         return cls(text, author, tags)
 
 
