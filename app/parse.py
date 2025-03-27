@@ -1,12 +1,10 @@
-import csv
-import time
-from dataclasses import dataclass
-from urllib.parse import urljoin
+from dataclasses import dataclass, fields, astuple
+from bs4 import BeautifulSoup, ResultSet
 import requests
-from bs4 import BeautifulSoup
+import csv
 
 
-BASE_URL = "https://quotes.toscrape.com/"
+HOME_URL = "https://quotes.toscrape.com/page/{page_number}/"
 
 
 @dataclass
@@ -15,56 +13,51 @@ class Quote:
     author: str
     tags: list[str]
 
-    @classmethod
-    def from_csv_row(cls, row: list[str]) -> "Quote":
-        text, author, tags_str = row
-        tags = tags_str.split(", ") if tags_str else []
-        return cls(text, author, tags)
+
+QUOTE_FIELDS = [field.name for field in fields(Quote)]
 
 
-def get_quotes() -> list[Quote]:
-    quotes = []
-    page = 1
+def get_quotes_data(quotes: ResultSet) -> list[Quote]:
+    quotes_inform = [
+        Quote(
+            text=quote.select_one(".text").text,
+            author=quote.select_one("small.author").text,
+            tags=[
+                tag.get_text()
+                for tag in quote.find_all("a", attrs={"class": "tag"})
+            ],
+        )
+        for quote in quotes
+    ]
+    return quotes_inform
+
+
+def get_quotes_from_pages() -> list[Quote]:
+    counter = 1
+    all_quotes_from_page = []
 
     while True:
-        url = urljoin(BASE_URL, f"page/{page}/")
-        response = requests.get(url)
-        if response.status_code != 200:
-            break
+        page = requests.get(HOME_URL.format(page_number=counter))
+        soup = BeautifulSoup(page.content, "html.parser")
 
-        soup = BeautifulSoup(response.text, "html.parser")
-        page_quotes = soup.find_all("div", class_="quote")
+        quotes = soup.find_all("div", attrs={"class": "quote"})
+        all_quotes_from_page.extend(get_quotes_data(quotes))
+        counter += 1
 
-        if not page_quotes:
-            break
-
-        for quote in page_quotes:
-            text = quote.find("span", class_="text").get_text(strip=True)
-            author = quote.find("small", class_="author").get_text(strip=True)
-            tags = [
-                tag.get_text(strip=True) for tag in quote.find_all(
-                    "a", class_="tag"
-                )
-            ]
-            quotes.append(Quote(text, author, tags))
-
-        page += 1
-        time.sleep(1)
-
-    return quotes
-
-
-def write_quotes_to_csv(quotes: list[Quote], output_csv_path: str) -> None:
-    with open(output_csv_path, "w", newline="", encoding="utf-8") as file:
-        writer = csv.writer(file)
-        writer.writerow(["text", "author", "tags"])
-        for quote in quotes:
-            writer.writerow([quote.text, quote.author, ", ".join(quote.tags)])
+        if page.status_code != 200 or not soup.select("nav ul li.next"):
+            return all_quotes_from_page
 
 
 def main(output_csv_path: str) -> None:
-    quotes = get_quotes()
-    write_quotes_to_csv(quotes, output_csv_path)
+    with open(output_csv_path, "w", encoding="utf-8", newline="") as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(QUOTE_FIELDS)
+        writer.writerows(
+            [
+                astuple(quote)
+                for quote in get_quotes_from_pages()
+            ]
+        )
 
 
 if __name__ == "__main__":
