@@ -44,7 +44,11 @@ def get_quotes() -> list[Quote]:
         for quote in page_quotes:
             text = quote.find("span", class_="text").get_text(strip=True)
             author = quote.find("small", class_="author").get_text(strip=True)
-            tags = [tag.get_text(strip=True) for tag in quote.find_all("a", class_="tag")]
+            tags = [
+                tag.get_text(strip=True) for tag in quote.find_all(
+                    "a", class_="tag"
+                )
+            ]
             quotes.append(Quote(text, author, tags))
 
         page += 1
