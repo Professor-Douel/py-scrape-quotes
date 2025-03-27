@@ -6,7 +6,9 @@ from urllib.parse import urljoin
 import requests
 from bs4 import BeautifulSoup
 
+
 BASE_URL = "https://quotes.toscrape.com/"
+
 
 @dataclass
 class Quote:
@@ -19,6 +21,7 @@ class Quote:
         text, author, tags_str = row
         tags = tags_str.split(", ") if tags_str else []
         return cls(text, author, tags)
+
 
 def get_quotes() -> list[Quote]:
     quotes = []
@@ -51,6 +54,7 @@ def get_quotes() -> list[Quote]:
 
     return quotes
 
+
 def write_quotes_to_csv(quotes: list[Quote], output_csv_path: str) -> None:
     with open(output_csv_path, "w", newline="", encoding="utf-8") as file:
         writer = csv.writer(file)
@@ -58,9 +62,11 @@ def write_quotes_to_csv(quotes: list[Quote], output_csv_path: str) -> None:
         for quote in quotes:
             writer.writerow([quote.text, quote.author, ", ".join(quote.tags)])
 
+
 def main(output_csv_path: str) -> None:
     quotes = get_quotes()
     write_quotes_to_csv(quotes, output_csv_path)
+
 
 if __name__ == "__main__":
     main("quotes.csv")
